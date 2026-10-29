@@ -1,0 +1,18 @@
+{
+  "states": [
+    {"name": "INITIATED", "accepting": false, "ttl_seconds": 0},
+    {"name": "KYC_VERIFIED", "accepting": false, "ttl_seconds": 60},
+    {"name": "AML_CLEARED", "accepting": false, "ttl_seconds": 120},
+    {"name": "RISK_APPROVED", "accepting": false, "ttl_seconds": 30},
+    {"name": "SETTLED", "accepting": true, "ttl_seconds": 0},
+    {"name": "EXPIRED_TRAP", "accepting": false, "ttl_seconds": 0},
+    {"name": "TRAP", "accepting": false, "ttl_seconds": 0}
+  ],
+  "events": ["VerifyKYC", "ClearAML", "ApproveRisk", "SettlePayment"],
+  "transitions": [
+    {"from": "INITIATED", "event": "VerifyKYC", "to": "KYC_VERIFIED"},
+    {"from": "KYC_VERIFIED", "event": "ClearAML", "to": "AML_CLEARED"},
+    {"from": "AML_CLEARED", "event": "ApproveRisk", "to": "RISK_APPROVED"},
+    {"from": "RISK_APPROVED", "event": "SettlePayment", "to": "SETTLED"}
+  ]
+}

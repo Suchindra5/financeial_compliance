@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Compliance DFA Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 650px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { font-size: 24px; color: #2c3e50; margin-bottom: 5px; }
+        .subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #27ae60; color: white; border: none; padding: 10px 15px; font-size: 16px; border-radius: 4px; cursor: pointer; width: 100%; }
+        button:hover { background-color: #219653; }
+        .card { margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef; display: none; }
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 14px; color: white; margin-top: 5px; }
+        .bg-init { background-color: #3498db; }
+        .bg-progress { background-color: #f39c12; }
+        .bg-success { background-color: #27ae60; }
+        .bg-danger { background-color: #e74c3c; }
+        .metrics-grid { display: flex; justify-content: space-between; margin-top: 10px; text-align: center; }
+        .metric-box { background: #eef2f3; padding: 10px; border-radius: 4px; width: 30%; }
+        .metric-box span { display: block; font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Financial Workflow Compliance Verifier</h1>
+    <div class="subtitle">Timed Automata Engine Dashboard (O(1) Matrix Validation)</div>
+
+    <div class="form-group">
+        <label for="txnId">Transaction ID:</label>
+        <input type="text" id="txnId" value="TXN_001">
+    </div>
+
+    <div class="form-group">
+        <label for="eventSelect">Select Event:</label>
+        <select id="eventSelect">
+            <option value="VerifyKYC">VerifyKYC</option>
+            <option value="ClearAML">ClearAML</option>
+            <option value="ApproveRisk">ApproveRisk</option>
+            <option value="SettlePayment">SettlePayment</option>
+        </select>
+    </div>
+
+    <button onclick="sendEvent()">Evaluate Transition Matrix</button>
+
+    <div id="result" class="card">
+        <h3>Execution Result:</h3>
+        <p><b>Transaction:</b> <span id="resTxn"></span></p>
+        <p><b>Triggered Event:</b> <span id="resEvent"></span></p>
+        <p><b>Resolved State:</b> <br><span id="stateBadge" class="badge"></span></p>
+    </div>
+
+    <div id="metricsCard" class="card" style="display: block;">
+        <h3>Performance Telemetry (C++ Engine)</h3>
+        <div class="metrics-grid">
+            <div class="metric-box">
+                Total Evals
+                <span id="mTotal">0</span>
+            </div>
+            <div class="metric-box">
+                Trap Hits
+                <span id="mTraps">0</span>
+            </div>
+            <div class="metric-box">
+                Avg Latency
+                <span id="mLatency">0 ns</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const stateMap = {
+    "0": { name: "INITIATED", class: "bg-init" },
+    "1": { name: "KYC_VERIFIED", class: "bg-progress" },
+    "2": { name: "AML_CLEARED", class: "bg-progress" },
+    "3": { name: "RISK_APPROVED", class: "bg-progress" },
+    "4": { name: "SETTLED (Accepting State)", class: "bg-success" },
+    "5": { name: "EXPIRED_TRAP (Timeout)", class: "bg-danger" },
+    "6": { name: "TRAP (Compliance Violation)", class: "bg-danger" }
+};
+
+async function sendEvent() {
+    const txn_id = document.getElementById('txnId').value;
+    const event = document.getElementById('eventSelect').value;
+
+    const response = await fetch('/api/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txn_id, event })
+    });
+
+    const data = await response.json();
+    const resultDiv = document.getElementById('result');
+    resultDiv.style.display = 'block';
+
+    if (response.ok) {
+        document.getElementById('resTxn').innerText = data.txn_id;
+        document.getElementById('resEvent').innerText = data.event;
+
+        const stateInfo = stateMap[data.next_state_id] || { name: "UNKNOWN (" + data.next_state_id + ")", class: "bg-danger" };
+        const badge = document.getElementById('stateBadge');
+        badge.innerText = stateInfo.name;
+        badge.className = "badge " + stateInfo.class;
+
+        fetchMetrics();
+    } else {
+        document.getElementById('resTxn').innerText = txn_id;
+        document.getElementById('resEvent').innerText = event;
+        const badge = document.getElementById('stateBadge');
+        badge.innerText = "Error: " + data.error;
+        badge.className = "badge bg-danger";
+    }
+}
+
+async function fetchMetrics() {
+    try {
+        const res = await fetch('/api/metrics');
+        const data = await res.json();
+        if (res.ok && data.metrics_raw) {
+            const metrics = JSON.parse(data.metrics_raw);
+            document.getElementById('mTotal').innerText = metrics.total_evaluations;
+            document.getElementById('mTraps').innerText = metrics.trap_interceptions;
+            document.getElementById('mLatency').innerText = metrics.average_latency_nanoseconds + " ns";
+        }
+    } catch (e) {
+        console.error("Could not fetch metrics", e);
+    }
+}
+
+fetchMetrics();
+</script>
+
+</body>
+</html>
